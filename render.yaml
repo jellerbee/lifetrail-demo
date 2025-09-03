@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: life-moments-backend
+    env: docker
+    plan: starter
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase: life-moments-db
+        property: connectionString
+      - key: ALLOWED_ORIGINS
+        value: https://life-moments-frontend.onrender.com, http://localhost:3000
+    healthCheckPath: /health
+
+  - type: web
+    name: life-moments-frontend
+    env: docker
+    plan: starter
+    rootDir: frontend
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: NEXT_PUBLIC_BACKEND_URL
+        fromService:
+          name: life-moments-backend
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+
+databases:
+  - name: life-moments-db
+    plan: starter
