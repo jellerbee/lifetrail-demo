@@ -1,21 +1,24 @@
+
 services:
   - type: web
     name: life-moments-backend
-    env: docker
+    runtime: docker            # prefer 'runtime' over legacy 'env'
     plan: starter
     rootDir: backend
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: backend/Dockerfile  # path is relative to repo root
+    dockerContext: backend              # optional but helpful in monorepos
     envVars:
       - key: DATABASE_URL
-        fromDatabase: lmdb_prd
-        property: connectionString
+        fromDatabase:
+          name: lmdb_prd
+          property: connectionString
       - key: ALLOWED_ORIGINS
         value: https://life-moments-frontend.onrender.com, http://localhost:3000
     healthCheckPath: /health
 
   - type: web
     name: life-moments-frontend
-    env: docker
+    runtime: docker
     plan: starter
     rootDir: frontend
     dockerfilePath: ./Dockerfile
@@ -29,3 +32,4 @@ services:
 databases:
   - name: life-moments-db
     plan: starter
+
