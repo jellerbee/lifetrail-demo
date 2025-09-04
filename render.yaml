@@ -31,5 +31,5 @@ services:
 
 databases:
   - name: life-moments-db
-    plan: starter
+    plan: free
 
