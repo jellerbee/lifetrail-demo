@@ -7,7 +7,7 @@ services:
     dockerfilePath: ./Dockerfile
     envVars:
       - key: DATABASE_URL
-        fromDatabase: life-moments-db
+        fromDatabase: lmdb_prd
         property: connectionString
       - key: ALLOWED_ORIGINS
         value: https://life-moments-frontend.onrender.com, http://localhost:3000
