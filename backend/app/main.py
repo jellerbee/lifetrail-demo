@@ -12,6 +12,10 @@ from .image_processor import process_image_async
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Life Moments AI Backend")
+
+# Debug CORS settings
+print(f"CORS allowed origins: {settings.allowed_origins_list}")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins_list,

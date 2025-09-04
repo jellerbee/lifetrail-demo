@@ -13,7 +13,7 @@ services:
           name: life-moments-db
           property: connectionString
       - key: ALLOWED_ORIGINS
-        value: 'https://life-moments-frontend.onrender.com,http://localhost:3000'
+        value: 'https://life-moments-frontend.onrender.com,http://localhost:3000,*'
       - key: AWS_ACCESS_KEY_ID
         value: your_aws_access_key_here
       - key: AWS_SECRET_ACCESS_KEY
