@@ -10,27 +10,30 @@ from .settings import settings
 from .db import engine
 from . import models
 
-# Initialize clients
-rekognition = boto3.client(
-    'rekognition',
-    aws_access_key_id=settings.aws_access_key_id,
-    aws_secret_access_key=settings.aws_secret_access_key,
-    region_name=settings.aws_region
-)
+# AWS client factory functions
+def get_rekognition_client():
+    return boto3.client(
+        'rekognition',
+        aws_access_key_id=settings.aws_access_key_id,
+        aws_secret_access_key=settings.aws_secret_access_key,
+        region_name=settings.aws_region
+    )
 
-textract = boto3.client(
-    'textract',
-    aws_access_key_id=settings.aws_access_key_id,
-    aws_secret_access_key=settings.aws_secret_access_key,
-    region_name=settings.aws_region
-)
+def get_textract_client():
+    return boto3.client(
+        'textract',
+        aws_access_key_id=settings.aws_access_key_id,
+        aws_secret_access_key=settings.aws_secret_access_key,
+        region_name=settings.aws_region
+    )
 
-s3_client = boto3.client(
-    's3',
-    aws_access_key_id=settings.aws_access_key_id,
-    aws_secret_access_key=settings.aws_secret_access_key,
-    region_name=settings.aws_region
-)
+def get_s3_client():
+    return boto3.client(
+        's3',
+        aws_access_key_id=settings.aws_access_key_id,
+        aws_secret_access_key=settings.aws_secret_access_key,
+        region_name=settings.aws_region
+    )
 
 openai_client = OpenAI(api_key=settings.openai_api_key) if settings.openai_api_key else None
 
@@ -38,6 +41,7 @@ SessionLocal = sessionmaker(bind=engine)
 
 def detect_faces(s3_key: str):
     """Detect faces with AWS Rekognition"""
+    rekognition = get_rekognition_client()
     response = rekognition.detect_faces(
         Image={"S3Object": {"Bucket": settings.aws_bucket_name, "Name": s3_key}},
         Attributes=["ALL"]
@@ -57,6 +61,7 @@ def detect_faces(s3_key: str):
 
 def detect_labels(s3_key: str):
     """Detect image labels with AWS Rekognition"""
+    rekognition = get_rekognition_client()
     response = rekognition.detect_labels(
         Image={"S3Object": {"Bucket": settings.aws_bucket_name, "Name": s3_key}},
         MaxLabels=15,
@@ -76,6 +81,7 @@ def detect_labels(s3_key: str):
 
 def extract_text_from_textract(s3_key: str):
     """Extract text from image using AWS Textract"""
+    textract = get_textract_client()
     response = textract.detect_document_text(
         Document={"S3Object": {"Bucket": settings.aws_bucket_name, "Name": s3_key}}
     )
@@ -91,6 +97,7 @@ def extract_exif_gps(s3_key: str):
     """Extract GPS coordinates from EXIF data"""
     try:
         # Download image from S3
+        s3_client = get_s3_client()
         response = s3_client.get_object(Bucket=settings.aws_bucket_name, Key=s3_key)
         image_bytes = response['Body'].read()
         

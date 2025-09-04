@@ -4,12 +4,14 @@ from io import BytesIO
 from PIL import Image
 from .settings import settings
 
-s3_client = boto3.client(
-    's3',
-    aws_access_key_id=settings.aws_access_key_id,
-    aws_secret_access_key=settings.aws_secret_access_key,
-    region_name=settings.aws_region
-)
+def get_s3_client():
+    """Get S3 client with current settings"""
+    return boto3.client(
+        's3',
+        aws_access_key_id=settings.aws_access_key_id,
+        aws_secret_access_key=settings.aws_secret_access_key,
+        region_name=settings.aws_region
+    )
 
 def convert_to_jpeg(image_bytes: bytes) -> bytes:
     """Convert image to JPEG format"""
@@ -35,6 +37,7 @@ def upload_image_to_s3(image_bytes: bytes, filename: str) -> str:
     s3_key = f"images/{unique_id}.jpg"
     
     # Upload to S3
+    s3_client = get_s3_client()
     s3_client.put_object(
         Bucket=settings.aws_bucket_name,
         Key=s3_key,
