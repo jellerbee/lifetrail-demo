@@ -1,0 +1,33 @@
+# VCS
+.git
+.gitignore
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Next.js outputs
+.next/
+.next/cache/
+out/
+
+# Tests / coverage
+coverage/
+.cypress/
+playwright-report/
+test-results/
+
+# Env files (keep example)
+.env
+.env.*
+!.env.example
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
+
+# Misc
+*.log

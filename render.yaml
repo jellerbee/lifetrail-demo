@@ -5,8 +5,8 @@ services:
     runtime: docker            # prefer 'runtime' over legacy 'env'
     plan: starter
     rootDir: backend
-    dockerfilePath: backend/Dockerfile  # path is relative to repo root
-    dockerContext: backend              # optional but helpful in monorepos
+    dockerfilePath: ./Dockerfile  # path is relative to repo root
+    dockerContext: .              
     envVars:
       - key: DATABASE_URL
         fromDatabase:
