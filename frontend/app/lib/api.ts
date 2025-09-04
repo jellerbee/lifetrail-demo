@@ -1,5 +1,7 @@
 const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
+let s3Config: { bucket_name: string; region: string } | null = null;
+
 export const api = {
   base: BASE_URL,
   async process(text: string) {
@@ -28,9 +30,21 @@ export const api = {
     if (!res.ok) throw new Error("Request failed");
     return res.json();
   },
-  getImageUrl(s3Key: string) {
-    // Assuming AWS S3 bucket URL format
-    const bucketName = "your-bucket-name"; // This should come from env or API
-    return `https://${bucketName}.s3.amazonaws.com/${s3Key}`;
+  async getS3Config() {
+    if (!s3Config) {
+      const res = await fetch(`${this.base}/api/s3-config`);
+      if (res.ok) {
+        s3Config = await res.json();
+      }
+    }
+    return s3Config;
+  },
+  async getImageUrl(s3Key: string) {
+    const config = await this.getS3Config();
+    if (config && config.bucket_name && config.region) {
+      return `https://${config.bucket_name}.s3.${config.region}.amazonaws.com/${s3Key}`;
+    }
+    // Fallback
+    return `https://your-bucket.s3.amazonaws.com/${s3Key}`;
   }
 };

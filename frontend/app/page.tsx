@@ -1,6 +1,29 @@
 "use client";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { api } from "./lib/api";
+
+function ImageDisplay({ s3Key }: { s3Key: string }) {
+  const [imageUrl, setImageUrl] = useState<string>("");
+  
+  useEffect(() => {
+    api.getImageUrl(s3Key).then(setImageUrl);
+  }, [s3Key]);
+
+  if (!imageUrl) return null;
+
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <img
+        src={imageUrl}
+        alt="Life moment"
+        style={{ maxWidth: 300, maxHeight: 200, objectFit: "cover", borderRadius: 4 }}
+        onError={(e) => {
+          e.currentTarget.style.display = "none";
+        }}
+      />
+    </div>
+  );
+}
 
 type Event = { 
   id: number; 
@@ -178,16 +201,7 @@ export default function Page() {
             <div style={{ fontWeight: 600, marginBottom: 8 }}>{ev.summary}</div>
             
             {ev.kind === "image" && ev.source && (
-              <div style={{ marginBottom: 8 }}>
-                <img
-                  src={api.getImageUrl(ev.source)}
-                  alt="Life moment"
-                  style={{ maxWidth: 300, maxHeight: 200, objectFit: "cover", borderRadius: 4 }}
-                  onError={(e) => {
-                    e.currentTarget.style.display = "none";
-                  }}
-                />
-              </div>
+              <ImageDisplay s3Key={ev.source} />
             )}
             
             {ev.kind === "text" && (

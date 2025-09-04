@@ -14,7 +14,7 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(title="Life Moments AI Backend")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allowed_origins,
+    allow_origins=settings.allowed_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -76,6 +76,13 @@ async def upload_image(
     ).start()
     
     return event
+
+@app.get("/api/s3-config")
+async def get_s3_config():
+    return {
+        "bucket_name": settings.aws_bucket_name,
+        "region": settings.aws_region
+    }
 
 @app.get("/api/events", response_model=list[schemas.EventOut])
 async def list_events(db: Session = Depends(get_db)):
