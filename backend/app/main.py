@@ -9,6 +9,13 @@ from .ai import extract_keywords, summarize
 from .s3 import upload_image_to_s3
 from .image_processor import process_image_async
 
+# Run database migration first
+try:
+    from .migrate import migrate_database
+    migrate_database()
+except Exception as e:
+    print(f"Migration failed: {e}")
+
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Life Moments AI Backend")
