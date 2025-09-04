@@ -165,33 +165,59 @@ def reverse_geocode_locationiq(lat: float, lon: float):
 def infer_event_from_context(labels: list, ocr_text: str, caption: str):
     """Use OpenAI to classify event type"""
     if not openai_client:
-        return "unknown"
+        return "personal"
     
     try:
         label_names = [label["name"] for label in labels]
-        prompt = f"""
-Based on the following information about an image, classify the type of life event this represents.
+        
+        # Enhanced prompt with more context and examples
+        prompt = f"""You are an expert at categorizing life moments and personal events. Based on the image analysis below, classify this life moment into the most appropriate category.
 
-Caption: {caption}
-Detected objects/scenes: {', '.join(label_names)}
-Text found in image: {ocr_text}
+USER'S DESCRIPTION: "{caption}"
+VISUAL ELEMENTS: {', '.join(label_names) if label_names else 'None detected'}
+TEXT IN IMAGE: "{ocr_text}" {'' if ocr_text else '(No text found)'}
 
-Choose one category: family, travel, food, work, celebration, nature, sports, education, social, other
+CATEGORIES:
+- family: Family gatherings, relatives, children, parents, home life, family meals
+- travel: Vacations, tourism, landmarks, hotels, airports, transportation, sightseeing
+- food: Restaurants, cooking, meals, recipes, dining experiences, food preparation
+- work: Office, meetings, conferences, professional events, workplace, business
+- celebration: Birthdays, weddings, parties, holidays, anniversaries, achievements
+- nature: Outdoors, hiking, beaches, parks, wildlife, landscapes, camping, hunting, fishing
+- sports: Exercise, games, athletics, fitness, recreational activities
+- education: School, learning, books, graduation, classes, academic events
+- social: Friends, social gatherings, nightlife, community events, networking
+- hobby: Personal interests, crafts, collections, creative activities, hobbies
+- personal: Daily life, self-care, routine activities, individual moments
 
-Respond with just the category name.
-"""
+INSTRUCTIONS:
+1. Give primary weight to the user's caption as it reflects their intent
+2. Use visual elements and text to support the classification
+3. Choose the single most specific category that fits
+4. If multiple categories apply, choose the most prominent theme
+5. Respond with ONLY the category name (lowercase, no explanation)
+
+Category:"""
         
         response = openai_client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=10,
-            temperature=0.3
+            max_tokens=15,
+            temperature=0.2
         )
         
-        return response.choices[0].message.content.strip().lower()
+        result = response.choices[0].message.content.strip().lower()
+        
+        # Validate response is one of our categories
+        valid_categories = {
+            'family', 'travel', 'food', 'work', 'celebration', 
+            'nature', 'sports', 'education', 'social', 'hobby', 'personal'
+        }
+        
+        return result if result in valid_categories else "personal"
     
     except Exception:
-        return "unknown"
+        return "personal"
 
 def process_image_async(event_id: int, s3_key: str, caption: str):
     """Process image asynchronously with AI services"""
