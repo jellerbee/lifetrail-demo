@@ -37,10 +37,7 @@ services:
     dockerfilePath: ./Dockerfile
     envVars:
       - key: NEXT_PUBLIC_BACKEND_URL
-        fromService:
-          name: life-moments-backend
-          type: web
-          envVarKey: RENDER_EXTERNAL_URL
+        value: https://life-moments-backend.onrender.com
 
 databases:
   - name: life-moments-db

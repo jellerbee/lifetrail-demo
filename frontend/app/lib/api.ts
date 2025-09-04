@@ -1,5 +1,11 @@
 const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
+// Debug logging for production
+if (typeof window !== 'undefined') {
+  console.log('Frontend API Base URL:', BASE_URL);
+  console.log('NEXT_PUBLIC_BACKEND_URL env var:', process.env.NEXT_PUBLIC_BACKEND_URL);
+}
+
 let s3Config: { bucket_name: string; region: string } | null = null;
 
 export const api = {
