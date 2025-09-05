@@ -7,6 +7,7 @@ if (typeof window !== 'undefined') {
 }
 
 let s3Config: { bucket_name: string; region: string } | null = null;
+let imageUrlCache: { [key: string]: string } = {};
 
 export const api = {
   base: BASE_URL,
@@ -46,11 +47,7 @@ export const api = {
     return s3Config;
   },
   async getImageUrl(s3Key: string) {
-    const config = await this.getS3Config();
-    if (config && config.bucket_name && config.region) {
-      return `https://${config.bucket_name}.s3.${config.region}.amazonaws.com/${s3Key}`;
-    }
-    // Fallback
-    return `https://your-bucket.s3.amazonaws.com/${s3Key}`;
+    // Use backend proxy for images
+    return `${this.base}/api/image/${s3Key}`;
   }
 };

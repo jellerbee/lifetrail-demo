@@ -1,0 +1,18 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install dependencies including TypeScript
+COPY package.json package-lock.json* ./
+RUN apk add --no-cache python3 make g++ libc6-compat
+RUN npm ci
+RUN npm install --save-dev typescript @types/react @types/node
+
+# Copy source code
+COPY . .
+
+ENV NEXT_TELEMETRY_DISABLED=1
+
+EXPOSE 3000
+
+CMD ["npm", "run", "dev"]

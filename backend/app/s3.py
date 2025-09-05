@@ -48,5 +48,17 @@ def upload_image_to_s3(image_bytes: bytes, filename: str) -> str:
     return s3_key
 
 def get_s3_url(s3_key: str) -> str:
-    """Generate S3 URL for displaying image"""
-    return f"https://{settings.aws_bucket_name}.s3.{settings.aws_region}.amazonaws.com/{s3_key}"
+    """Generate presigned S3 URL for displaying image"""
+    s3_client = get_s3_client()
+    
+    try:
+        # Generate presigned URL that expires in 1 hour
+        presigned_url = s3_client.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': settings.aws_bucket_name, 'Key': s3_key},
+            ExpiresIn=3600  # 1 hour
+        )
+        return presigned_url
+    except Exception as e:
+        # Fallback to direct URL if presigned generation fails
+        return f"https://{settings.aws_bucket_name}.s3.{settings.aws_region}.amazonaws.com/{s3_key}"

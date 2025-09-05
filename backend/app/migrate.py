@@ -37,6 +37,51 @@ def migrate_database():
             """))
             conn.commit()
         
+        # Check if heic_metadata column exists
+        result = conn.execute(text("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'events' AND column_name = 'heic_metadata'
+        """))
+        
+        if not result.fetchone():
+            print("Adding heic_metadata column...")
+            conn.execute(text("""
+                ALTER TABLE events 
+                ADD COLUMN heic_metadata JSON
+            """))
+            conn.commit()
+        
+        # Check if original_filename column exists
+        result = conn.execute(text("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'events' AND column_name = 'original_filename'
+        """))
+        
+        if not result.fetchone():
+            print("Adding original_filename column...")
+            conn.execute(text("""
+                ALTER TABLE events 
+                ADD COLUMN original_filename VARCHAR(255)
+            """))
+            conn.commit()
+        
+        # Check if photo_taken_at column exists
+        result = conn.execute(text("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'events' AND column_name = 'photo_taken_at'
+        """))
+        
+        if not result.fetchone():
+            print("Adding photo_taken_at column...")
+            conn.execute(text("""
+                ALTER TABLE events 
+                ADD COLUMN photo_taken_at TIMESTAMPTZ
+            """))
+            conn.commit()
+        
         print("Database migration completed!")
 
 if __name__ == "__main__":

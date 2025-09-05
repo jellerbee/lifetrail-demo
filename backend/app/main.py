@@ -6,8 +6,9 @@ from .settings import settings
 from .db import Base, engine, SessionLocal
 from . import models, schemas
 from .ai import extract_keywords, summarize
-from .s3 import upload_image_to_s3
+from .s3 import upload_image_to_s3, get_s3_url
 from .image_processor import process_image_async
+from .heic_processor import is_heic_file, process_heic_upload
 
 # Run database migration first
 try:
@@ -55,25 +56,41 @@ async def process_text(payload: schemas.ProcessTextRequest, db: Session = Depend
 @app.post("/api/upload", response_model=schemas.EventOut)
 async def upload_image(
     file: UploadFile = File(...),
-    caption: str = Form(...),
+    caption: str = Form(""),
     db: Session = Depends(get_db)
 ):
-    # Validate file type
-    if not file.content_type.startswith('image/'):
-        raise HTTPException(status_code=400, detail="File must be an image")
+    # Validate file type (accept both regular images and HEIC)
+    is_heic = is_heic_file(file.filename or "")
+    if not (file.content_type and file.content_type.startswith('image/')) and not is_heic:
+        raise HTTPException(status_code=400, detail="File must be an image (including HEIC/HEIF)")
     
     # Read file content
     image_bytes = await file.read()
+    heic_metadata = None
+    final_filename = file.filename
     
-    # Upload to S3
-    s3_key = upload_image_to_s3(image_bytes, file.filename)
+    # Process HEIC files
+    if is_heic:
+        try:
+            # Extract metadata and convert to JPEG
+            image_bytes, heic_metadata = process_heic_upload(image_bytes, file.filename or "")
+            # Change filename extension to .jpg for S3 storage
+            base_name = (file.filename or "image").rsplit('.', 1)[0]
+            final_filename = f"{base_name}.jpg"
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to process HEIC image: {str(e)}")
+    
+    # Upload to S3 (now JPEG if converted from HEIC)
+    s3_key = upload_image_to_s3(image_bytes, final_filename)
     
     # Create event with pending status
     event = models.Event(
         kind="image",
         source=s3_key,
         summary=caption,
-        processing_status="pending"
+        processing_status="pending",
+        heic_metadata=heic_metadata,
+        original_filename=file.filename
     )
     db.add(event)
     db.commit()
@@ -98,3 +115,36 @@ async def get_s3_config():
 @app.get("/api/events", response_model=list[schemas.EventOut])
 async def list_events(db: Session = Depends(get_db)):
     return db.query(models.Event).order_by(models.Event.id.desc()).limit(50).all()
+
+from fastapi.responses import Response
+
+@app.get("/api/image-url/{s3_key:path}")
+async def get_image_url(s3_key: str):
+    """Get presigned URL for S3 image"""
+    try:
+        url = get_s3_url(s3_key)
+        return {"url": url}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate image URL: {str(e)}")
+
+@app.get("/api/image/{s3_key:path}")
+async def get_image_proxy(s3_key: str):
+    """Proxy S3 images through backend"""
+    try:
+        from .s3 import get_s3_client
+        s3_client = get_s3_client()
+        
+        # Get image from S3
+        response = s3_client.get_object(Bucket=settings.aws_bucket_name, Key=s3_key)
+        image_data = response['Body'].read()
+        
+        # Return image with appropriate headers
+        return Response(
+            content=image_data,
+            media_type="image/jpeg",
+            headers={
+                "Cache-Control": "public, max-age=3600"
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"Image not found: {str(e)}")

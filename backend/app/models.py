@@ -11,4 +11,7 @@ class Event(Base):
     labels = Column(Text, nullable=True)                # comma-separated labels
     processing_status = Column(String(32), default="completed")  # "pending" | "completed" | "failed"
     ai_results = Column(JSON, nullable=True)            # faces, labels, ocr_text, location, event_type
+    heic_metadata = Column(JSON, nullable=True)         # original HEIC metadata (EXIF, device info, etc)
+    original_filename = Column(String(255), nullable=True)  # original filename with extension
+    photo_taken_at = Column(DateTime(timezone=True), nullable=True)  # when photo was actually taken (from EXIF)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
