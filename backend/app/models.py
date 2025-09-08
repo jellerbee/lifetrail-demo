@@ -7,7 +7,8 @@ class Event(Base):
     id = Column(Integer, primary_key=True, index=True)
     kind = Column(String(32), nullable=False)           # "image" | "text"
     source = Column(Text, nullable=True)                # raw text or S3 key
-    summary = Column(Text, nullable=False)              # AI summary or user caption
+    summary = Column(Text, nullable=False)              # AI-generated summary 
+    user_caption = Column(Text, nullable=True)          # original user-provided caption
     labels = Column(Text, nullable=True)                # comma-separated labels
     processing_status = Column(String(32), default="completed")  # "pending" | "completed" | "failed"
     ai_results = Column(JSON, nullable=True)            # faces, labels, ocr_text, location, event_type

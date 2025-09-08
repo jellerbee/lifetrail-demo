@@ -1,6 +1,7 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { api } from "./lib/api";
+import heic2any from "heic2any";
 
 function ImageDisplay({ s3Key, thumbnail = false }: { s3Key: string, thumbnail?: boolean }) {
   const [imageUrl, setImageUrl] = useState<string>("");
@@ -63,6 +64,7 @@ type Event = {
   kind: string; 
   source?: string; 
   summary: string; 
+  user_caption?: string;
   labels?: string;
   processing_status: string;
   ai_results?: any;
@@ -138,14 +140,133 @@ function QuestionMark({ questions }: { questions: string[] }) {
   );
 }
 
+function PreviewImage({ file }: { file: File }) {
+  const [previewUrl, setPreviewUrl] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const isHeicFile = file.type === 'image/heic' || file.type === 'image/heif' || 
+                    file.name.toLowerCase().endsWith('.heic') || 
+                    file.name.toLowerCase().endsWith('.heif');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function processFile() {
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        if (isHeicFile) {
+          console.log('Converting HEIC to JPEG for preview...');
+          
+          // Convert HEIC to JPEG blob for preview
+          const convertedBlob = await heic2any({
+            blob: file,
+            toType: "image/jpeg",
+            quality: 0.8
+          }) as Blob;
+          
+          if (cancelled) return;
+          
+          const url = URL.createObjectURL(convertedBlob);
+          setPreviewUrl(url);
+          console.log('HEIC converted successfully for preview');
+        } else {
+          // For regular images, use the file directly
+          const url = URL.createObjectURL(file);
+          setPreviewUrl(url);
+        }
+        
+        setIsLoading(false);
+      } catch (err) {
+        console.error('Failed to process image for preview:', err);
+        if (!cancelled) {
+          setError(`Failed to process ${isHeicFile ? 'HEIC' : 'image'} file`);
+          setIsLoading(false);
+        }
+      }
+    }
+
+    processFile();
+
+    return () => {
+      cancelled = true;
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [file, isHeicFile]);
+
+  if (isLoading) {
+    return (
+      <div style={{
+        width: 200,
+        height: 150,
+        backgroundColor: "#f5f5f5",
+        border: "2px dashed #ccc",
+        borderRadius: 4,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexDirection: "column",
+        color: "#666",
+        fontSize: 14
+      }}>
+        <div style={{ fontSize: 24, marginBottom: 8 }}>⏳</div>
+        <div>{file.name}</div>
+        <div style={{ fontSize: 12, marginTop: 4 }}>
+          {isHeicFile ? 'Converting HEIC...' : 'Loading...'}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{
+        width: 200,
+        height: 150,
+        backgroundColor: "#f5f5f5",
+        border: "2px dashed #ccc",
+        borderRadius: 4,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexDirection: "column",
+        color: "#666",
+        fontSize: 14
+      }}>
+        <div style={{ fontSize: 24, marginBottom: 8 }}>⚠️</div>
+        <div>{file.name}</div>
+        <div style={{ fontSize: 12, marginTop: 4, color: "#dc3545" }}>{error}</div>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={previewUrl}
+      alt="Preview"
+      style={{ maxWidth: 200, maxHeight: 200, objectFit: "cover", borderRadius: 4 }}
+      onError={() => {
+        console.log('Converted preview failed to load');
+        setError('Preview failed to load');
+      }}
+    />
+  );
+}
+
 export default function Page() {
-  const [text, setText] = useState("");
   const [caption, setCaption] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"text" | "image">("text");
   const [editingDateFor, setEditingDateFor] = useState<number | null>(null);
+  
+  // Auto-refresh state management
+  const autoRefreshInterval = useRef<NodeJS.Timeout | null>(null);
+  const autoRefreshTimeout = useRef<NodeJS.Timeout | null>(null);
   
   // Check if debug mode is enabled
   const isDebugMode = process.env.NEXT_PUBLIC_DEBUG === 'true';
@@ -159,15 +280,13 @@ export default function Page() {
   }
   useEffect(() => { refresh(); }, []);
 
-  async function onSubmitText(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      await api.process(text);
-      setText("");
-      await refresh();
-    } finally { setLoading(false); }
-  }
+  // Cleanup intervals on component unmount
+  useEffect(() => {
+    return () => {
+      stopAutoRefresh();
+    };
+  }, []);
+
 
   async function onSubmitImage(e: React.FormEvent) {
     e.preventDefault();
@@ -178,7 +297,17 @@ export default function Page() {
       await api.upload(selectedFile, caption);
       setCaption("");
       setSelectedFile(null);
+      
+      // Reset file input element
+      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+      if (fileInput) {
+        fileInput.value = '';
+      }
+      
       await refresh();
+      
+      // Start auto-refresh after successful upload
+      startAutoRefresh();
     } finally { setLoading(false); }
   }
 
@@ -209,6 +338,47 @@ export default function Page() {
     setEditingDateFor(null);
   }
 
+  async function handleTruncateEvents() {
+    if (confirm('Are you sure you want to delete ALL events? This cannot be undone.')) {
+      try {
+        await api.truncateEvents();
+        window.location.reload(); // Refresh the entire page
+      } catch (error) {
+        console.error('Failed to truncate events:', error);
+        alert('Failed to truncate events. Check console for details.');
+      }
+    }
+  }
+
+  function startAutoRefresh() {
+    // Clear any existing intervals
+    stopAutoRefresh();
+    
+    // Start refreshing every 3 seconds
+    autoRefreshInterval.current = setInterval(() => {
+      refresh();
+    }, 3000);
+    
+    // Stop auto-refresh after 2 minutes (120 seconds)
+    autoRefreshTimeout.current = setTimeout(() => {
+      stopAutoRefresh();
+    }, 120000);
+    
+    console.log('Auto-refresh started: 3s interval, stops after 2 minutes');
+  }
+
+  function stopAutoRefresh() {
+    if (autoRefreshInterval.current) {
+      clearInterval(autoRefreshInterval.current);
+      autoRefreshInterval.current = null;
+    }
+    if (autoRefreshTimeout.current) {
+      clearTimeout(autoRefreshTimeout.current);
+      autoRefreshTimeout.current = null;
+    }
+    console.log('Auto-refresh stopped');
+  }
+
   return (
     <div style={{ maxWidth: 800, margin: "0 auto", padding: 16 }}>
       <style jsx>{`
@@ -224,63 +394,8 @@ export default function Page() {
           }
         }
       `}</style>
-      <h1>Life Moments AI</h1>
-      
-      {/* Tab Navigation */}
-      <div style={{ marginBottom: 16 }}>
-        <button
-          onClick={() => setActiveTab("text")}
-          style={{
-            padding: "8px 16px",
-            marginRight: 8,
-            backgroundColor: activeTab === "text" ? "#007bff" : "#f8f9fa",
-            color: activeTab === "text" ? "white" : "black",
-            border: "1px solid #ccc",
-            borderRadius: 4,
-            cursor: "pointer"
-          }}
-        >
-          Add Text
-        </button>
-        <button
-          onClick={() => setActiveTab("image")}
-          style={{
-            padding: "8px 16px",
-            backgroundColor: activeTab === "image" ? "#007bff" : "#f8f9fa",
-            color: activeTab === "image" ? "white" : "black",
-            border: "1px solid #ccc",
-            borderRadius: 4,
-            cursor: "pointer"
-          }}
-        >
-          Upload Image
-        </button>
-      </div>
-
-      {/* Text Form */}
-      {activeTab === "text" && (
-        <form onSubmit={onSubmitText} style={{ marginBottom: 24 }}>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Paste a sentence about a life moment..."
-              style={{ flex: 1, padding: 8, border: "1px solid #ccc", borderRadius: 4 }}
-            />
-            <button 
-              disabled={loading || !text} 
-              type="submit"
-              style={{ padding: "8px 16px", backgroundColor: "#007bff", color: "white", border: "none", borderRadius: 4 }}
-            >
-              Add
-            </button>
-          </div>
-        </form>
-      )}
-
       {/* Image Form */}
-      {activeTab === "image" && (
-        <form onSubmit={onSubmitImage} style={{ marginBottom: 24 }}>
+      <form onSubmit={onSubmitImage} style={{ marginBottom: 24 }}>
           <div style={{ marginBottom: 8 }}>
             <input
               type="file"
@@ -294,31 +409,7 @@ export default function Page() {
           </div>
           {selectedFile && (
             <div style={{ marginBottom: 8 }}>
-              {isHeicFile(selectedFile.name) ? (
-                <div style={{
-                  width: 200,
-                  height: 150,
-                  backgroundColor: "#f5f5f5",
-                  border: "2px dashed #ccc",
-                  borderRadius: 4,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexDirection: "column",
-                  color: "#666",
-                  fontSize: 14
-                }}>
-                  <div style={{ fontSize: 24, marginBottom: 8 }}>📷</div>
-                  <div>{selectedFile.name}</div>
-                  <div style={{ fontSize: 12, marginTop: 4 }}>HEIC/HEIF Preview</div>
-                </div>
-              ) : (
-                <img
-                  src={URL.createObjectURL(selectedFile)}
-                  alt="Preview"
-                  style={{ maxWidth: 200, maxHeight: 200, objectFit: "cover", borderRadius: 4 }}
-                />
-              )}
+              <PreviewImage file={selectedFile} />
             </div>
           )}
           <div style={{ display: "flex", gap: 8 }}>
@@ -337,19 +428,34 @@ export default function Page() {
             </button>
           </div>
         </form>
-      )}
 
       {/* Refresh Button */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: 16, display: "flex", gap: 8 }}>
         <button 
           onClick={refresh}
           style={{ padding: "6px 12px", backgroundColor: "#28a745", color: "white", border: "none", borderRadius: 4 }}
         >
           Refresh Timeline
         </button>
+        
+        {/* Debug-only Truncate Button */}
+        {isDebugMode && (
+          <button 
+            onClick={handleTruncateEvents}
+            style={{ 
+              padding: "6px 12px", 
+              backgroundColor: "#dc3545", 
+              color: "white", 
+              border: "none", 
+              borderRadius: 4,
+              fontWeight: "bold"
+            }}
+          >
+            🗑️ Clear All Events
+          </button>
+        )}
       </div>
 
-      <h2>Life Timeline</h2>
       <div style={{ maxWidth: 600, margin: "0 auto" }}>
         {events.filter(ev => ev.kind === "image").map((ev, index, filteredEvents) => {
           // Simple grouping logic for demo: group photos with generic summaries
@@ -485,26 +591,52 @@ export default function Page() {
                     )}
                   </div>
                   
-                  {/* AI Summary - First Person with Question Mark */}
+                  {/* User Caption */}
+                  {ev.user_caption && (
+                    <div style={{
+                      fontSize: 14,
+                      lineHeight: 1.4,
+                      color: "#333",
+                      marginBottom: 6
+                    }}>
+                      {ev.user_caption}
+                    </div>
+                  )}
+                  
+                  {/* AI-Generated Summary with Icon */}
                   <div style={{ 
                     display: "flex",
                     alignItems: "flex-start",
-                    fontSize: 14, 
+                    fontSize: 13, 
                     lineHeight: 1.4,
-                    color: "#333"
+                    color: "#666"
                   }}>
-                    <div style={{ flex: 1 }}>
-                      {ev.processing_status === "pending" ? (
-                        <span style={{ color: "#999", fontStyle: "italic" }}>
-                          Processing memory...
-                        </span>
-                      ) : ev.processing_status === "failed" ? (
-                        <span style={{ color: "#999", fontStyle: "italic" }}>
-                          Couldn't quite make out what happened here...
-                        </span>
-                      ) : (
-                        ev.summary || "A moment in time..."
-                      )}
+                    <div style={{ 
+                      display: "flex", 
+                      alignItems: "flex-start", 
+                      flex: 1 
+                    }}>
+                      <span style={{ 
+                        fontSize: 11,
+                        marginRight: 6,
+                        marginTop: 1,
+                        opacity: 0.7
+                      }}>
+                        ✦✦✦
+                      </span>
+                      <div style={{ flex: 1 }}>
+                        {ev.processing_status === "pending" ? (
+                          <span style={{ color: "#999", fontStyle: "italic" }}>
+                            Processing memory...
+                          </span>
+                        ) : ev.processing_status === "failed" ? (
+                          <span style={{ color: "#999", fontStyle: "italic" }}>
+                            Couldn't quite make out what happened here...
+                          </span>
+                        ) : (
+                          ev.summary || "A moment in time..."
+                        )}
+                      </div>
                     </div>
                     {ev.processing_status === "completed" && ev.ai_results?.clarification_questions && (
                       <QuestionMark questions={ev.ai_results.clarification_questions} />

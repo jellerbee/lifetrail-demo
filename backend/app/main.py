@@ -95,7 +95,8 @@ async def upload_image(
     event = models.Event(
         kind="image",
         source=s3_key,
-        summary=caption,
+        summary="Processing...",  # Will be replaced with AI summary
+        user_caption=caption,     # Store original user caption
         processing_status="pending",
         heic_metadata=heic_metadata,
         original_filename=file.filename
@@ -123,6 +124,24 @@ async def get_s3_config():
 @app.get("/api/events", response_model=list[schemas.EventOut])
 async def list_events(db: Session = Depends(get_db)):
     return db.query(models.Event).order_by(models.Event.id.desc()).limit(50).all()
+
+@app.post("/api/truncate-events")
+async def truncate_events(db: Session = Depends(get_db)):
+    """
+    DEBUG ENDPOINT: Truncate all events from the database.
+    TODO: Add proper authentication/authorization for this endpoint in production.
+    TODO: Consider adding S3 cleanup to also delete associated image files.
+    """
+    try:
+        # Delete all events
+        count = db.query(models.Event).count()
+        db.query(models.Event).delete()
+        db.commit()
+        
+        return {"message": f"Successfully deleted {count} events", "deleted_count": count}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to truncate events: {str(e)}")
 
 from fastapi.responses import Response
 

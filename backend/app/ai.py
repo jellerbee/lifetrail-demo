@@ -15,6 +15,10 @@ def extract_keywords(text: str, k: int = 5) -> List[str]:
 async def summarize(text: str) -> str:
     return f"Life Moment: {text[:160]}..." if len(text) > 160 else f"Life Moment: {text}"
 
+# TODO: This code demonstrates using multiple AI processes from different sources.
+# The create_first_person_summary function below uses AWS Rekognition + OpenAI text-based analysis,
+# while create_timeline_narrative uses GPT-4 Vision for direct image analysis.
+
 def create_first_person_summary(
     caption: str, 
     labels: List[Dict[str, Any]] = None, 
@@ -192,36 +196,160 @@ def generate_clarification_questions(
     
     # Event-related questions based on visual cues
     if any(word in ' '.join(detected_labels) for word in ['formal', 'dress', 'suit', 'flower']):
-        questions.append("Is this a wedding or special celebration?")
+        questions.append("What special event is this?")
     
     if 'cake' in ' '.join(detected_labels) and 'candle' in ' '.join(detected_labels):
-        questions.append("Is this a birthday celebration?")
+        questions.append("Whose birthday celebration is this?")
     
     if any(word in ' '.join(detected_labels) for word in ['stage', 'crowd', 'performance']):
-        questions.append("Are you performing or watching a show?")
+        questions.append("What show or performance is this?")
     
     # Location context questions
     if location_info and location_info.get('city'):
         city = location_info.get('city')
         user_city = user_profile.get('city', '')
         if city.lower() != user_city.lower():
-            questions.append(f"Are you visiting {city} for work or pleasure?")
+            questions.append(f"What brings you to {city}?")
     
     # People context questions
     if len(faces) == 2:
         partner_name = user_profile.get('relationships', {}).get('partner', 'someone special')
-        questions.append(f"Is this with {partner_name}?")
+        questions.append(f"Who is with you in this photo?")
     elif len(faces) > 2:
-        questions.append("Is this a family gathering or friends meetup?")
+        questions.append("Who are you with in this photo?")
     
     # Activity questions based on objects/context
     if 'food' in ' '.join(detected_labels) and 'kitchen' in ' '.join(detected_labels):
         if 'cooking' in user_profile.get('interests', []):
-            questions.append("Did you cook this yourself?")
+            questions.append("What are you cooking?")
     
     if any(word in ' '.join(detected_labels) for word in ['mountain', 'trail', 'backpack']):
         if 'hiking' in user_profile.get('interests', []):
-            questions.append("Which trail is this from?")
+            questions.append("Where are you hiking?")
     
     # Return max 2 questions
     return questions[:2]
+
+
+def create_timeline_narrative(
+    image_bytes: bytes,
+    caption: str = "",
+    photo_datetime: str = "",
+    location_info: Dict[str, Any] = None,
+    user_profile: Dict[str, Any] = None
+) -> str:
+    """
+    Generate a friendly journalist-style narrative using GPT-4 Vision.
+    Analyzes the image directly and creates contextually aware descriptions.
+    """
+    import base64
+    import json
+    from datetime import datetime
+    from openai import OpenAI
+    from .settings import settings
+    
+    if not settings.openai_api_key:
+        return "A moment captured in time."
+    
+    try:
+        # Encode image for GPT-4 Vision
+        base64_image = base64.b64encode(image_bytes).decode('utf-8')
+        
+        # Parse datetime for smart context
+        day_of_week = ""
+        time_context = ""
+        if photo_datetime:
+            try:
+                dt = datetime.fromisoformat(photo_datetime.replace('Z', '+00:00'))
+                day_of_week = dt.strftime('%A')
+                hour = dt.hour
+                if 9 <= hour <= 17:
+                    time_context = "during work hours"
+                elif 17 < hour <= 21:
+                    time_context = "in the evening"
+                elif 6 <= hour < 9:
+                    time_context = "in the morning"
+                else:
+                    time_context = "late at night"
+            except:
+                pass
+        
+        # Build context
+        user_name = user_profile.get('name', 'User') if user_profile else 'User'
+        user_age = user_profile.get('age', '') if user_profile else ''
+        occupation = user_profile.get('occupation', '') if user_profile else ''
+        city = user_profile.get('city', '') if user_profile else ''
+        interests = ', '.join(user_profile.get('interests', [])) if user_profile else ''
+        
+        location_text = ""
+        if location_info:
+            if location_info.get('city') and location_info.get('city').lower() != city.lower():
+                location_text = f"while visiting {location_info.get('city')}"
+            elif location_info.get('address'):
+                # Local location
+                location_text = f"at {location_info.get('city', 'a local spot')}"
+        
+        caption_text = f'Caption: "{caption}"' if caption else "No caption provided"
+        
+        prompt = f"""Analyze this photo and create a friendly journalist-style description of this moment in {user_name}'s life.
+
+CONTEXT DATA:
+- Date/Time: {photo_datetime} ({day_of_week} {time_context}) 
+- Location: {location_text or 'location unknown'}
+- User: {user_name}{f', {user_age}' if user_age else ''}{f', {occupation}' if occupation else ''}{f' in {city}' if city else ''}
+- Interests: {interests or 'not specified'}
+- {caption_text}
+
+SMART INFERENCE RULES:
+- Weekday 9am-5pm + outdoor scene = likely break from work
+- Weekend + activity = recreational/personal time  
+- Evening + restaurant/social = dinner/social time
+- Travel location ≠ home city = trip context
+- Consider visible weather, lighting, season
+- Use relationships context if multiple people visible
+
+Create a 1-2 sentence description that:
+1. Uses third person with {user_name}'s name
+2. Makes reasonable assumptions about the context/timing
+3. Stays factual but warm in tone
+4. Incorporates what you can see in the image
+5. Avoids putting emotional words in {user_name}'s mouth
+
+Example good outputs:
+- "{user_name} stepped away from his desk for a lunchtime walk through the park on Tuesday afternoon"  
+- "{user_name} and Sam enjoyed dinner at a neighborhood restaurant on Saturday evening"
+- "{user_name} captured the sunrise during an early morning hike before starting his workday"
+"""
+
+        client = OpenAI(api_key=settings.openai_api_key)
+        
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": prompt
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{base64_image}",
+                                "detail": "high"
+                            }
+                        }
+                    ]
+                }
+            ],
+            max_tokens=150,
+            temperature=0.7
+        )
+        
+        narrative = response.choices[0].message.content.strip()
+        return narrative if narrative else "A moment from this day."
+        
+    except Exception as e:
+        print(f"GPT-4 Vision narrative generation failed: {e}")
+        return "A moment captured during the day."

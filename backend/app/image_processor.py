@@ -9,7 +9,7 @@ from sqlalchemy.orm import sessionmaker
 from .settings import settings
 from .db import engine
 from . import models
-from .ai import create_first_person_summary, generate_clarification_questions
+from .ai import create_first_person_summary, generate_clarification_questions, create_timeline_narrative
 
 # AWS client factory functions
 def get_rekognition_client():
@@ -312,15 +312,61 @@ def process_image_async(event_id: int, s3_key: str, caption: str):
                 print(f"Text extraction failed: {e}, continuing without OCR")
                 ocr_text = ""
         
-        # Extract photo date from EXIF (always try this)
-        print("Extracting photo date from EXIF...")
-        photo_date = extract_photo_date(s3_key)
-        print(f"Photo date extracted: {photo_date}")
+        # Get the current event to check for HEIC metadata
+        event = db.query(models.Event).filter(models.Event.id == event_id).first()
         
-        # Extract GPS and get location (always try GPS, LocationIQ is separate)
+        # Extract photo date - prioritize HEIC metadata if available
+        print("Extracting photo date...")
+        print(f"Event ID: {event_id}, has heic_metadata: {event and event.heic_metadata is not None}")
+        if event and event.heic_metadata:
+            print(f"HEIC metadata keys: {list(event.heic_metadata.keys())}")
+            print(f"HEIC timestamp field: {event.heic_metadata.get('timestamp')}")
+            if 'extraction_error' in event.heic_metadata:
+                print(f"HEIC extraction error: {event.heic_metadata['extraction_error']}")
+            # Show all available EXIF tags for debugging
+            if 'all_exif_tags' in event.heic_metadata:
+                all_tags = event.heic_metadata['all_exif_tags']
+                date_related = {k: v for k, v in all_tags.items() if 'date' in k.lower() or 'time' in k.lower()}
+                print(f"HEIC date-related EXIF tags: {date_related}")
+                # Also show first 10 tags to see what's available
+                first_tags = dict(list(all_tags.items())[:10])
+                print(f"First 10 HEIC EXIF tags: {first_tags}")
+        
+        photo_date = None
+        if event and event.heic_metadata and event.heic_metadata.get('timestamp'):
+            print("Using date from HEIC metadata")
+            from datetime import datetime
+            timestamp_value = event.heic_metadata.get('timestamp')
+            print(f"Raw timestamp value: {timestamp_value}, type: {type(timestamp_value)}")
+            try:
+                # HEIC metadata timestamp is in ISO format
+                photo_date = datetime.fromisoformat(timestamp_value)
+                print(f"HEIC date parsed: {photo_date}")
+            except (ValueError, TypeError) as e:
+                print(f"Failed to parse HEIC timestamp '{timestamp_value}': {e}")
+        
+        if not photo_date:
+            print("Extracting photo date from S3 image EXIF...")
+            photo_date = extract_photo_date(s3_key)
+            print(f"S3 photo date extracted: {photo_date}")
+        
+        # Extract GPS coordinates - prioritize HEIC metadata if available
         print("Extracting GPS coordinates...")
-        gps_coords = extract_exif_gps(s3_key)
-        print(f"GPS coords: {gps_coords}")
+        gps_coords = None
+        if event and event.heic_metadata and 'location' in event.heic_metadata:
+            heic_location = event.heic_metadata['location']
+            if 'latitude' in heic_location and 'longitude' in heic_location:
+                print("Using GPS from HEIC metadata")
+                gps_coords = {
+                    'latitude': heic_location['latitude'],
+                    'longitude': heic_location['longitude']
+                }
+                print(f"HEIC GPS coords: {gps_coords}")
+        
+        if not gps_coords:
+            print("Extracting GPS coordinates from S3 image EXIF...")
+            gps_coords = extract_exif_gps(s3_key)
+            print(f"S3 GPS coords: {gps_coords}")
         location_info = None
         if gps_coords and settings.locationiq_api_key:
             try:
@@ -351,17 +397,44 @@ def process_image_async(event_id: int, s3_key: str, caption: str):
         user_profile = settings.user_profile
         print(f"User profile loaded for: {user_profile.get('name')}")
         
-        print("Creating first-person summary...")
-        first_person_summary = create_first_person_summary(
-            caption=caption,
-            labels=labels,
-            location_info=location_info,
-            faces=faces,
-            ocr_text=ocr_text,
-            heic_metadata=None,  # We'll pass this later if needed
-            user_profile=user_profile
-        )
-        print(f"Summary created: '{first_person_summary}'")
+        print("Creating timeline narrative using GPT-4 Vision...")
+        
+        # Get image bytes from S3 for GPT-4 Vision
+        image_bytes = None
+        try:
+            s3_client = get_s3_client()
+            response = s3_client.get_object(Bucket=settings.aws_bucket_name, Key=s3_key)
+            image_bytes = response['Body'].read()
+            print("Image bytes retrieved from S3 for GPT-4 Vision")
+        except Exception as e:
+            print(f"Failed to get image bytes from S3: {e}")
+        
+        # Format photo datetime for GPT-4 Vision
+        photo_datetime_str = ""
+        if photo_date:
+            photo_datetime_str = photo_date.isoformat()
+        
+        if image_bytes:
+            timeline_narrative = create_timeline_narrative(
+                image_bytes=image_bytes,
+                caption=caption,
+                photo_datetime=photo_datetime_str,
+                location_info=location_info,
+                user_profile=user_profile
+            )
+        else:
+            # Fallback to old method if image bytes not available
+            timeline_narrative = create_first_person_summary(
+                caption=caption,
+                labels=labels,
+                location_info=location_info,
+                faces=faces,
+                ocr_text=ocr_text,
+                heic_metadata=None,
+                user_profile=user_profile
+            )
+        
+        print(f"Narrative created: '{timeline_narrative}'")
         
         # Generate clarification questions for photos without captions
         print("Checking for clarification questions...")
@@ -389,19 +462,18 @@ def process_image_async(event_id: int, s3_key: str, caption: str):
         }
         print("AI results prepared successfully")
         
-        # Update event in database
-        event = db.query(models.Event).filter(models.Event.id == event_id).first()
+        # Update event in database (event already queried above)
         if event:
             event.ai_results = ai_results
             event.processing_status = "completed"
-            event.summary = first_person_summary  # Use first-person summary instead of caption
+            event.summary = timeline_narrative  # Use timeline narrative instead of caption
             event.photo_taken_at = photo_date  # Store the actual photo date
             
             # Update labels field with top labels
             top_labels = [label["name"] for label in labels[:5]]
             event.labels = ",".join(top_labels)
             
-            print(f"Updated event {event_id}: status=completed, summary='{first_person_summary}', questions={len(clarification_questions)}")
+            print(f"Updated event {event_id}: status=completed, summary='{timeline_narrative}', questions={len(clarification_questions)}")
             db.commit()
         else:
             print(f"Event {event_id} not found in database!")

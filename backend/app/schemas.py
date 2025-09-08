@@ -13,6 +13,7 @@ class EventOut(BaseModel):
     kind: str
     source: str | None
     summary: str
+    user_caption: str | None
     labels: str | None
     processing_status: str
     ai_results: Dict[str, Any] | None

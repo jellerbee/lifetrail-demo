@@ -10,6 +10,14 @@ from PIL import Image, ExifTags
 import pillow_heif
 import exifread
 
+class MockExifTag:
+    """Mock exifread tag for Pillow EXIF data compatibility"""
+    def __init__(self, value):
+        self.value = value
+    
+    def __str__(self):
+        return str(self.value)
+
 # Register HEIF opener with Pillow
 pillow_heif.register_heif_opener()
 
@@ -25,9 +33,58 @@ def extract_heic_metadata(image_bytes: bytes) -> Dict:
     }
     
     try:
-        # Use exifread for comprehensive EXIF data
+        print("Starting HEIC metadata extraction...")
+        
+        # First try using Pillow with pillow-heif for EXIF data
         image_file = io.BytesIO(image_bytes)
-        tags = exifread.process_file(image_file, details=True)
+        tags = {}
+        exif_data = None
+        
+        try:
+            with Image.open(image_file) as img:
+                print(f"HEIC image opened successfully: {img.format} {img.size}")
+                exif_data = img.getexif()
+                if exif_data:
+                    print(f"Found {len(exif_data)} EXIF entries via Pillow")
+                    # Convert to exifread-style format
+                    for tag_id, value in exif_data.items():
+                        tag_name = ExifTags.TAGS.get(tag_id, f"Tag_{tag_id}")
+                        if tag_name == "DateTime":
+                            tags["Image DateTime"] = MockExifTag(value)
+                        elif tag_name == "DateTimeOriginal":
+                            tags["EXIF DateTimeOriginal"] = MockExifTag(value)
+                        elif tag_name == "GPSInfo" and isinstance(value, dict):
+                            # Handle GPS data
+                            for gps_tag_id, gps_value in value.items():
+                                gps_tag_name = ExifTags.GPSTAGS.get(gps_tag_id, f"GPS_{gps_tag_id}")
+                                if gps_tag_name in ["GPSLatitude", "GPSLongitude", "GPSLatitudeRef", "GPSLongitudeRef"]:
+                                    tags[f"GPS {gps_tag_name}"] = MockExifTag(gps_value)
+                else:
+                    print("No EXIF data found via Pillow")
+        except Exception as pillow_error:
+            print(f"Pillow EXIF extraction failed: {pillow_error}")
+        
+        # Fallback to exifread if we didn't get what we need
+        if not tags:
+            try:
+                image_file.seek(0)
+                tags = exifread.process_file(image_file, details=True)
+                print(f"HEIC EXIF extraction via exifread found {len(tags)} tags")
+            except Exception as exifread_error:
+                print(f"exifread extraction failed: {exifread_error}")
+        
+        # Show debug info about found tags
+        if tags:
+            key_tags = ['EXIF DateTimeOriginal', 'Image DateTime', 'EXIF DateTime', 'GPS GPSLatitude', 'GPS GPSLongitude']
+            for tag_name in key_tags:
+                if tag_name in tags:
+                    print(f"Found HEIC tag {tag_name}: {tags[tag_name]}")
+            
+            date_time_tags = {k: str(v) for k, v in tags.items() if 'date' in k.lower() or 'time' in k.lower()}
+            if date_time_tags:
+                print(f"All HEIC date/time tags: {date_time_tags}")
+        else:
+            print("No EXIF tags extracted from HEIC file")
         
         # Extract device information
         if 'Image Make' in tags:
@@ -66,18 +123,33 @@ def extract_heic_metadata(image_bytes: bytes) -> Dict:
                 metadata['location']['longitude'] = lon
         
         # Extract timestamp
+        timestamp_found = False
         if 'EXIF DateTimeOriginal' in tags:
             try:
                 dt_str = str(tags['EXIF DateTimeOriginal'])
+                print(f"HEIC DateTimeOriginal found: '{dt_str}'")
                 metadata['timestamp'] = datetime.strptime(dt_str, '%Y:%m:%d %H:%M:%S').isoformat()
-            except ValueError:
-                pass
-        elif 'Image DateTime' in tags:
+                print(f"HEIC timestamp parsed to ISO: {metadata['timestamp']}")
+                timestamp_found = True
+            except ValueError as e:
+                print(f"Failed to parse HEIC DateTimeOriginal '{dt_str}': {e}")
+        
+        if not timestamp_found and 'Image DateTime' in tags:
             try:
                 dt_str = str(tags['Image DateTime'])
+                print(f"HEIC DateTime found: '{dt_str}'")
                 metadata['timestamp'] = datetime.strptime(dt_str, '%Y:%m:%d %H:%M:%S').isoformat()
-            except ValueError:
-                pass
+                print(f"HEIC timestamp parsed to ISO: {metadata['timestamp']}")
+                timestamp_found = True
+            except ValueError as e:
+                print(f"Failed to parse HEIC DateTime '{dt_str}': {e}")
+        
+        if not timestamp_found:
+            print("No HEIC timestamp found in EXIF data")
+            # List all date-related tags for debugging
+            date_tags = {k: str(v) for k, v in tags.items() if 'date' in k.lower() or 'time' in k.lower()}
+            if date_tags:
+                print(f"Available date/time tags: {date_tags}")
         
         # Extract image properties using Pillow
         image_file.seek(0)

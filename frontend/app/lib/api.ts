@@ -11,15 +11,6 @@ let imageUrlCache: { [key: string]: string } = {};
 
 export const api = {
   base: BASE_URL,
-  async process(text: string) {
-    const res = await fetch(`${this.base}/api/process`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text })
-    });
-    if (!res.ok) throw new Error("Request failed");
-    return res.json();
-  },
   async upload(file: File, caption: string) {
     const formData = new FormData();
     formData.append("file", file);
@@ -49,5 +40,13 @@ export const api = {
   async getImageUrl(s3Key: string) {
     // Use backend proxy for images
     return `${this.base}/api/image/${s3Key}`;
+  },
+  async truncateEvents() {
+    // TODO: Implement backend endpoint to truncate all events from database
+    const res = await fetch(`${this.base}/api/truncate-events`, {
+      method: "POST",
+    });
+    if (!res.ok) throw new Error("Truncate failed");
+    return res.json();
   }
 };

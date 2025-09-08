@@ -82,6 +82,21 @@ def migrate_database():
             """))
             conn.commit()
         
+        # Check if user_caption column exists
+        result = conn.execute(text("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'events' AND column_name = 'user_caption'
+        """))
+        
+        if not result.fetchone():
+            print("Adding user_caption column...")
+            conn.execute(text("""
+                ALTER TABLE events 
+                ADD COLUMN user_caption TEXT
+            """))
+            conn.commit()
+        
         print("Database migration completed!")
 
 if __name__ == "__main__":
