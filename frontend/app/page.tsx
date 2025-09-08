@@ -1,7 +1,6 @@
 "use client";
 import React, { useEffect, useState, useRef } from "react";
 import { api } from "./lib/api";
-import heic2any from "heic2any";
 
 function ImageDisplay({ s3Key, thumbnail = false }: { s3Key: string, thumbnail?: boolean }) {
   const [imageUrl, setImageUrl] = useState<string>("");
@@ -160,22 +159,34 @@ function PreviewImage({ file }: { file: File }) {
         if (isHeicFile) {
           console.log('Converting HEIC to JPEG for preview...');
           
-          // Convert HEIC to JPEG blob for preview
-          const convertedBlob = await heic2any({
-            blob: file,
-            toType: "image/jpeg",
-            quality: 0.8
-          }) as Blob;
-          
-          if (cancelled) return;
-          
-          const url = URL.createObjectURL(convertedBlob);
-          setPreviewUrl(url);
-          console.log('HEIC converted successfully for preview');
+          // Only import and use heic2any in the browser
+          if (typeof window !== 'undefined') {
+            const heic2any = (await import('heic2any')).default;
+            
+            // Convert HEIC to JPEG blob for preview
+            const convertedBlob = await heic2any({
+              blob: file,
+              toType: "image/jpeg",
+              quality: 0.8
+            }) as Blob;
+            
+            if (cancelled) return;
+            
+            const url = URL.createObjectURL(convertedBlob);
+            setPreviewUrl(url);
+            console.log('HEIC converted successfully for preview');
+          } else {
+            // Server-side rendering fallback
+            setError('HEIC preview not available during server rendering');
+          }
         } else {
-          // For regular images, use the file directly
-          const url = URL.createObjectURL(file);
-          setPreviewUrl(url);
+          // For regular images, use the file directly (browser only)
+          if (typeof window !== 'undefined') {
+            const url = URL.createObjectURL(file);
+            setPreviewUrl(url);
+          } else {
+            setError('Preview not available during server rendering');
+          }
         }
         
         setIsLoading(false);
@@ -298,10 +309,12 @@ export default function Page() {
       setCaption("");
       setSelectedFile(null);
       
-      // Reset file input element
-      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-      if (fileInput) {
-        fileInput.value = '';
+      // Reset file input element (browser only)
+      if (typeof window !== 'undefined') {
+        const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+        if (fileInput) {
+          fileInput.value = '';
+        }
       }
       
       await refresh();
@@ -339,7 +352,7 @@ export default function Page() {
   }
 
   async function handleTruncateEvents() {
-    if (confirm('Are you sure you want to delete ALL events? This cannot be undone.')) {
+    if (typeof window !== 'undefined' && confirm('Are you sure you want to delete ALL events? This cannot be undone.')) {
       try {
         await api.truncateEvents();
         window.location.reload(); // Refresh the entire page
