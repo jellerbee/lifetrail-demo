@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     aws_bucket_name: str | None = None
     aws_region: str = "us-east-1"
     locationiq_api_key: str | None = None
+    db_init_mode: str | None = None
 
     @property
     def allowed_origins_list(self) -> List[str]:

@@ -145,6 +145,10 @@ export default function Page() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"text" | "image">("text");
+  const [editingDateFor, setEditingDateFor] = useState<number | null>(null);
+  
+  // Check if debug mode is enabled
+  const isDebugMode = process.env.NEXT_PUBLIC_DEBUG === 'true';
 
   async function refresh() {
     try { 
@@ -187,6 +191,22 @@ export default function Page() {
 
   function isHeicFile(filename: string): boolean {
     return /\.(heic|heif)$/i.test(filename);
+  }
+
+  async function updateEventDate(eventId: number, newDate: string) {
+    // TODO: Implement backend API call to update event's photo_taken_at field
+    // Example API call:
+    // await api.updateEvent(eventId, { photo_taken_at: newDate });
+    
+    // For now, just update the UI optimistically
+    setEvents(prevEvents => 
+      prevEvents.map(event => 
+        event.id === eventId 
+          ? { ...event, photo_taken_at: newDate }
+          : event
+      )
+    );
+    setEditingDateFor(null);
   }
 
   return (
@@ -349,11 +369,13 @@ export default function Page() {
           // Demo grouping stub: show expandable indicator for generic photos
           const shouldShowGroup = isGeneric && !nextIsGeneric;
           // Use photo_taken_at if available, otherwise fall back to created_at
-          let eventDate = new Date();
+          let eventDate;
           if (ev.photo_taken_at) {
             eventDate = new Date(ev.photo_taken_at);
           } else if (ev.created_at) {
             eventDate = new Date(ev.created_at);
+          } else {
+            eventDate = new Date(); // Fallback to current time if no dates available
           }
           
           const formatDate = (date: Date) => {
@@ -407,9 +429,60 @@ export default function Page() {
                     fontSize: 12, 
                     color: "#666", 
                     marginBottom: 4,
-                    fontWeight: 500 
+                    fontWeight: 500,
+                    position: "relative"
                   }}>
-                    {formatDate(eventDate)}
+                    {editingDateFor === ev.id ? (
+                      <input
+                        type="date"
+                        defaultValue={eventDate.toISOString().split('T')[0]}
+                        onBlur={(e) => {
+                          if (e.target.value) {
+                            updateEventDate(ev.id, e.target.value + 'T12:00:00Z');
+                          } else {
+                            setEditingDateFor(null);
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            if (e.currentTarget.value) {
+                              updateEventDate(ev.id, e.currentTarget.value + 'T12:00:00Z');
+                            } else {
+                              setEditingDateFor(null);
+                            }
+                          } else if (e.key === 'Escape') {
+                            setEditingDateFor(null);
+                          }
+                        }}
+                        autoFocus
+                        style={{
+                          fontSize: 12,
+                          border: "1px solid #007bff",
+                          borderRadius: 3,
+                          padding: "2px 4px",
+                          outline: "none"
+                        }}
+                      />
+                    ) : (
+                      <span
+                        onClick={() => setEditingDateFor(ev.id)}
+                        title="Click to change date"
+                        style={{
+                          cursor: "pointer",
+                          padding: "2px 4px",
+                          borderRadius: 3,
+                          transition: "background-color 0.2s ease"
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = "#f0f8ff";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = "transparent";
+                        }}
+                      >
+                        {formatDate(eventDate)}
+                      </span>
+                    )}
                   </div>
                   
                   {/* AI Summary - First Person with Question Mark */}
@@ -437,6 +510,79 @@ export default function Page() {
                       <QuestionMark questions={ev.ai_results.clarification_questions} />
                     )}
                   </div>
+                  
+                  {/* Debug Information */}
+                  {isDebugMode && (
+                    <div style={{ 
+                      marginTop: 12,
+                      padding: 8,
+                      backgroundColor: "#f8f9fa",
+                      borderRadius: 4,
+                      border: "1px solid #e9ecef",
+                      fontSize: 11,
+                      fontFamily: "monospace"
+                    }}>
+                      <div style={{ fontWeight: "bold", marginBottom: 6, color: "#495057" }}>
+                        🐛 DEBUG INFO:
+                      </div>
+                      
+                      {ev.labels && (
+                        <div style={{ marginBottom: 4 }}>
+                          <strong>Labels:</strong> {ev.labels}
+                        </div>
+                      )}
+                      
+                      {ev.original_filename && (
+                        <div style={{ marginBottom: 4 }}>
+                          <strong>File:</strong> {ev.original_filename}
+                        </div>
+                      )}
+                      
+                      {ev.ai_results && (
+                        <div style={{ marginBottom: 4 }}>
+                          <strong>AI Results:</strong>
+                          <pre style={{ 
+                            margin: "4px 0 0 0",
+                            whiteSpace: "pre-wrap",
+                            fontSize: 10,
+                            maxHeight: 200,
+                            overflow: "auto",
+                            backgroundColor: "white",
+                            padding: 4,
+                            borderRadius: 3
+                          }}>
+                            {JSON.stringify(ev.ai_results, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+                      
+                      {ev.heic_metadata && (
+                        <div style={{ marginBottom: 4 }}>
+                          <strong>HEIC Metadata:</strong>
+                          <pre style={{ 
+                            margin: "4px 0 0 0",
+                            whiteSpace: "pre-wrap",
+                            fontSize: 10,
+                            maxHeight: 100,
+                            overflow: "auto",
+                            backgroundColor: "white",
+                            padding: 4,
+                            borderRadius: 3
+                          }}>
+                            {JSON.stringify(ev.heic_metadata, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+                      
+                      <div style={{ marginBottom: 4 }}>
+                        <strong>Status:</strong> {ev.processing_status}
+                      </div>
+                      
+                      <div style={{ fontSize: 10, color: "#6c757d" }}>
+                        ID: {ev.id} | Kind: {ev.kind} | Source: {ev.source || 'N/A'}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
               

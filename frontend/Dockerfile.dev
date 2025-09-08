@@ -12,6 +12,7 @@ RUN npm install --save-dev typescript @types/react @types/node
 COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_PUBLIC_DEBUG=true
 
 EXPOSE 3000
 

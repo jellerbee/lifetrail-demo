@@ -17,6 +17,14 @@ try:
 except Exception as e:
     print(f"Migration failed: {e}")
 
+# Run database initialization if configured
+try:
+    from .db_init import run_database_initialization
+    run_database_initialization(settings.db_init_mode)
+except Exception as e:
+    print(f"Database initialization failed: {e}")
+    # Don't raise here to allow app to continue if initialization fails
+
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Life Moments AI Backend")
