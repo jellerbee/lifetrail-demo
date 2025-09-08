@@ -33,6 +33,8 @@ services:
     envVars:
       - key: NEXT_PUBLIC_BACKEND_URL
         value: https://life-moments-backend.onrender.com
+      - key: NEXT_PUBLIC_DEBUG
+        value: false
 
 databases:
   - name: life-moments-db
