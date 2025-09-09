@@ -5,12 +5,16 @@ A comprehensive full-stack application for capturing and analyzing life moments 
 ## Quick Start
 
 1. **Deploy to Render**: Connect repository and auto-detect `render.yaml`
-2. **Configure Environment Variables** in Render Dashboard:
-   - Backend: Set `OPENAI_API_KEY`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_BUCKET_NAME`, `LOCATIONIQ_API_KEY`, `ALLOWED_ORIGINS`
-   - Frontend: Set `NEXT_PUBLIC_BACKEND_URL`, `NEXT_PUBLIC_DEBUG=false`
-3. **Customize service names** in `render.yaml` for security (URLs will be `https://your-service-name.onrender.com`)
-4. **Wait for deployment**: Both services and managed database will provision automatically
-5. **Upload Images**: Visit frontend URL and upload photos (including HEIC files) with optional captions
+2. **Create Environment Groups** in Render Dashboard (recommended):
+   - Backend group: `OPENAI_API_KEY`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_BUCKET_NAME`, `LOCATIONIQ_API_KEY`, `ALLOWED_ORIGINS`
+   - Frontend group: `NEXT_PUBLIC_BACKEND_URL`
+   - Apply groups to services after deployment
+3. **Service Configuration**:
+   - Custom service names in `render.yaml` for security
+   - Uses existing database (no new DB creation needed)
+   - Set `NEXT_PUBLIC_DEBUG=false` for production
+4. **Optional**: Configure custom domain for professional URLs
+5. **Upload Images**: Visit your deployed frontend and start uploading photos with optional captions
 
 ## Local Development
 
@@ -53,11 +57,12 @@ npm run dev
 ## Features
 
 ### Core Functionality
-- **Image Upload**: Supports JPEG, PNG, HEIC/HEIF formats with real-time preview
-- **AI Narratives**: GPT-4 Vision generates personalized timeline descriptions
-- **Smart Questions**: AI asks contextual clarification questions for photos without captions
-- **Date Management**: Click dates to edit photo timestamps
-- **Auto-refresh**: Timeline updates automatically after uploads
+- **Image Upload**: Supports JPEG, PNG, HEIC/HEIF formats with client-side preview conversion
+- **AI Narratives**: GPT-4 Vision generates journalist-style timeline descriptions
+- **Smart Questions**: AI asks open-ended contextual questions for photos without captions
+- **Date Management**: Click dates to edit photo timestamps with native date picker
+- **Auto-refresh**: Timeline updates automatically for 2 minutes after uploads (3-second intervals)
+- **Caption Priority**: User captions displayed first, AI summaries below with sparkle icons
 
 ### Advanced Features
 - **HEIC Processing**: Full metadata extraction including GPS and timestamps
@@ -67,10 +72,11 @@ npm run dev
 - **Debug Mode**: Toggle `NEXT_PUBLIC_DEBUG=true` for detailed technical information
 
 ### Data Pipeline
-1. **Upload**: Image processed and stored in S3
-2. **Analysis**: EXIF metadata extraction, GPS coordinates, face/object detection
-3. **AI Processing**: GPT-4 Vision creates contextual narrative using user profile
-4. **Timeline**: Real-time display with user captions and AI-generated descriptions
+1. **Upload**: Image processed and stored in S3 with HEIC conversion
+2. **Analysis**: EXIF metadata extraction, GPS coordinates, face/object detection, OCR text
+3. **AI Processing**: GPT-4 Vision analyzes images directly for contextual narratives
+4. **Database**: Events stored with separate user_caption and AI summary fields
+5. **Timeline**: Real-time display prioritizing user captions, then AI content with sparkle icons
 
 ## Environment Setup
 
@@ -98,10 +104,20 @@ NEXT_PUBLIC_DEBUG=false                  # Set to 'true' for debug features
 ## Development Notes
 
 - **Database migrations** run automatically on startup
-- **HEIC conversion** happens server-side (upload) and client-side (preview)
+- **HEIC conversion** happens server-side (upload) and client-side (preview) with SSR compatibility
 - **Auto-refresh** activates for 2 minutes after upload (3-second intervals)
 - **Debug mode** shows technical details, AI results, and truncate functionality
 - **User profile** is hardcoded for demo (Alex Chen, SF software engineer)
+- **Environment groups** recommended for managing secrets in production
+- **Custom domains** supported for professional deployment URLs
+- **Existing database reuse** prevents data loss during redeployments
+
+## Security Features
+
+- **Custom service names** in `render.yaml` for non-obvious URLs
+- **Environment groups** keep API keys out of public repository
+- **CORS configuration** restricts frontend access to authorized domains
+- **S3 proxy serving** avoids exposing S3 bucket URLs directly
 
 ---
 

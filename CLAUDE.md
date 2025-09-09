@@ -36,8 +36,9 @@ This is a full-stack Life Moments AI application with comprehensive image analys
 - `schemas.py` - Pydantic models for request/response validation
 - `db.py` - Database session management and SQLAlchemy setup with migrations
 - `ai.py` - Advanced AI functions with user profile context:
-  - `create_first_person_summary()` - Generates personalized first-person narratives
-  - `generate_clarification_questions()` - Creates contextual questions for ambiguous photos
+  - `create_timeline_narrative()` - GPT-4 Vision generates journalist-style narratives
+  - `create_first_person_summary()` - Legacy first-person narrative generator (demo)
+  - `generate_clarification_questions()` - Creates open-ended contextual questions
 - `settings.py` - Application configuration with hardcoded user profile (Alex Chen demo data)
 - `image_processor.py` - Comprehensive image analysis with AWS services:
   - Face detection (AWS Rekognition)
@@ -49,22 +50,25 @@ This is a full-stack Life Moments AI application with comprehensive image analys
 
 **Frontend Structure** (`frontend/app/`):
 - `page.tsx` - Main React component with:
-  - Tabbed interface (Text/Image upload)
-  - Clean timeline cards with 3 elements: thumbnail, date, AI summary
+  - Single image upload form (text upload removed)
+  - HEIC/HEIF preview with client-side conversion using heic2any
+  - Auto-refresh timeline (3-second intervals for 2 minutes after upload)
+  - Clickable date editing with native HTML date picker
+  - Debug mode toggle via NEXT_PUBLIC_DEBUG environment variable
+  - Clean timeline cards showing user caption first, then AI summary with sparkle icons
   - Interactive pulsing question marks for photos without captions
-  - HEIC file preview fallback
-- `lib/api.ts` - API client with image upload and S3 proxy support
+- `lib/api.ts` - API client with image upload, S3 proxy support, and debug truncate endpoint
 - `layout.tsx` - Next.js App Router layout component
 
-**Database**: Event table storing life moments with rich metadata, AI analysis results, and first-person narratives.
+**Database**: Event table storing life moments with rich metadata, AI analysis results, and separate user_caption field.
 
 **Key Data Flow**:
 1. User uploads image (with optional caption) → POST /api/upload
 2. Background processing extracts EXIF metadata, GPS coordinates, faces, labels, OCR text
-3. AI generates first-person narrative using user profile context (Alex Chen - SF software engineer)
-4. For photos without captions: AI generates clarification questions based on detected content
-5. Event stored with processing status, AI results, and personalized summary
-6. Frontend displays timeline with contextual narratives and interactive question UI
+3. AI generates journalist-style narrative using GPT-4 Vision with user profile context
+4. For photos without captions: AI generates open-ended clarification questions
+5. Event stored with processing status, AI results, user caption, and personalized summary
+6. Frontend displays timeline with user captions first, then AI narratives with sparkle icons
 
 ## Environment Variables
 
@@ -72,7 +76,7 @@ Copy `.env.example` files to `.env` in both frontend and backend directories:
 
 **Backend** (`backend/.env`):
 - `DATABASE_URL` - Postgres connection string (uses sqlite for local dev)
-- `OPENAI_API_KEY` - OpenAI API key for event classification and advanced AI features
+- `OPENAI_API_KEY` - OpenAI API key for GPT-4 Vision analysis
 - `ALLOWED_ORIGINS` - CORS origins (comma-separated)
 - `AWS_ACCESS_KEY_ID` - AWS credentials for Rekognition, Textract, and S3
 - `AWS_SECRET_ACCESS_KEY` - AWS secret key
@@ -82,13 +86,17 @@ Copy `.env.example` files to `.env` in both frontend and backend directories:
 
 **Frontend** (`frontend/.env`):
 - `NEXT_PUBLIC_BACKEND_URL` - Backend API URL
+- `NEXT_PUBLIC_DEBUG` - Enable debug features (true/false, requires rebuild for changes)
 
 ## Deployment
 
 Configured for Render.com deployment via `render.yaml`:
-- Dockerized services for both frontend and backend
-- Managed Postgres database
-- Automatic service discovery between frontend/backend
+- Dockerized services with custom service names for security
+- Uses existing managed Postgres database (life_moments_db)
+- Environment variables managed via Render environment groups
+- Custom domain support for production URLs
+- Automatic database migrations on backend startup
+- SSR-compatible build process with browser API guards
 
 ## AI Integration
 
@@ -101,15 +109,16 @@ The application includes sophisticated AI analysis for creating personalized lif
 - Relationships: partner Sam, pet Luna (cat)
 - Used to personalize AI narratives and generate contextual questions
 
-**First-Person Narratives** (`backend/app/ai.py`):
-- `create_first_person_summary()` - Creates personalized stories from image analysis
-- Uses user profile, location data, detected objects, and face information
-- Examples: "My happy place - away from the screen" (hiking context), "Trip to Austin - good to get away from San Francisco" (travel context)
+**Timeline Narratives** (`backend/app/ai.py`):
+- `create_timeline_narrative()` - GPT-4 Vision analyzes images directly for contextual narratives
+- Uses journalist-style third-person descriptions with user profile awareness
+- Examples: "Alex stepped away from his desk for a lunchtime walk", "Alex and Sam enjoyed dinner at a neighborhood restaurant"
+- Considers timing, location, weather, and user interests for smart context
 
 **Interactive Questions** (`backend/app/ai.py`):
-- `generate_clarification_questions()` - Generates up to 2 contextual questions for photos without captions  
-- Examples: "Is this with Sam?" (2 faces detected), "Are you visiting Austin for work or pleasure?" (travel detected)
-- Questions appear as pulsing blue buttons in the UI
+- `generate_clarification_questions()` - Generates up to 2 open-ended contextual questions
+- Examples: "What special event is this?", "Who are you with in this photo?", "Where are you hiking?"
+- Questions appear as pulsing blue buttons in the UI for photos without captions
 
 **AWS Services Integration**:
 - **Rekognition**: Face detection and object/scene labeling
