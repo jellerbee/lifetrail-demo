@@ -15,11 +15,17 @@ services:
       - key: AWS_REGION
         value: us-east-1
       - key: ALLOWED_ORIGINS
+        value: "placeholder"
       - key: AWS_ACCESS_KEY_ID
+        value: "placeholder"
       - key: AWS_SECRET_ACCESS_KEY
+        value: "placeholder"
       - key: AWS_BUCKET_NAME
+        value: "placeholder"
       - key: LOCATIONIQ_API_KEY
+        value: "placeholder"
       - key: OPENAI_API_KEY
+        value: "placeholder"
         
     healthCheckPath: /health
 
@@ -31,6 +37,7 @@ services:
     dockerfilePath: ./Dockerfile
     envVars:
       - key: NEXT_PUBLIC_BACKEND_URL
+        value: "placeholder"
       - key: NEXT_PUBLIC_DEBUG
         value: false
 
