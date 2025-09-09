@@ -2,21 +2,66 @@
 
 A comprehensive full-stack application for capturing and analyzing life moments through AI-powered image processing. Features advanced HEIC/HEIF support, GPT-4 Vision analysis, and personalized narrative generation.
 
-## Quick Start
+## Quick Start (Local Development)
 
-1. **Deploy to Render**: Connect repository and auto-detect `render.yaml`
+### Prerequisites
+- **Docker** and **Docker Compose** installed on your system
+- **Git** for cloning the repository
+- API keys for external services (see Environment Setup below)
+
+### Run Locally
+1. **Clone the repository**:
+   ```bash
+   git clone <your-repo-url>
+   cd lifemoments-demo
+   ```
+
+2. **Set up environment files**:
+   ```bash
+   # Copy example files
+   cp backend/.env.example backend/.env
+   cp frontend/.env.example frontend/.env
+   
+   # Edit with your API keys
+   nano backend/.env  # Add your OPENAI_API_KEY, AWS credentials, etc.
+   nano frontend/.env # Set NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
+   ```
+
+3. **Start with Docker Compose**:
+   ```bash
+   docker-compose up --build
+   ```
+
+4. **Access the application**:
+   - Frontend: http://localhost:3000
+   - Backend API: http://localhost:8000
+   - Database: PostgreSQL on localhost:5432
+
+5. **Upload Images**: Start uploading photos with optional captions to see AI analysis in action!
+
+## Deploy to Render
+
+### Production Deployment Steps
+
+1. **Deploy to Render**: Connect your forked repository and auto-detect `render.yaml`
+
 2. **Create Environment Groups** in Render Dashboard (recommended):
    - Backend group: `OPENAI_API_KEY`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_BUCKET_NAME`, `LOCATIONIQ_API_KEY`, `ALLOWED_ORIGINS`
    - Frontend group: `NEXT_PUBLIC_BACKEND_URL`
    - Apply groups to services after deployment
+
 3. **Service Configuration**:
    - Custom service names in `render.yaml` for security
    - Uses existing database (no new DB creation needed)
    - Set `NEXT_PUBLIC_DEBUG=false` for production
-4. **Optional**: Configure custom domain for professional URLs
-5. **Upload Images**: Visit your deployed frontend and start uploading photos with optional captions
 
-## Local Development
+4. **Optional**: Configure custom domain for professional URLs
+
+5. **Go Live**: Visit your deployed frontend and start building your AI-powered photo timeline!
+
+### Alternative: Manual Development Setup
+
+If you prefer running without Docker, you can set up each service manually:
 
 **Backend:**
 ```bash
