@@ -1,4 +1,6 @@
 
+region: us-east-1  # AWS region for entire blueprint
+
 services:
   - type: web
     name: ltbe-v100-jse247
@@ -7,21 +9,13 @@ services:
     rootDir: backend
     dockerfilePath: ./Dockerfile  # path is relative to repo root
     dockerContext: .              
+    envVarGroups:
+      - lifetrail-be-envgroup  # Reference to environment group name
     envVars:
       - key: DATABASE_URL
         fromDatabase:
-          name: ltdb-v100-jse247
+          name: life-moments-db
           property: connectionString
-      - key: ALLOWED_ORIGINS
-        # Set this in Render dashboard Environment Variables
-        # Example: 'https://your-frontend-url.onrender.com,http://localhost:3000'
-      - key: AWS_ACCESS_KEY_ID
-      - key: AWS_SECRET_ACCESS_KEY
-      - key: AWS_BUCKET_NAME
-      - key: AWS_REGION
-        value: us-east-1
-      - key: LOCATIONIQ_API_KEY
-      - key: OPENAI_API_KEY
         
     healthCheckPath: /health
 
@@ -31,10 +25,9 @@ services:
     plan: starter
     rootDir: frontend
     dockerfilePath: ./Dockerfile
+    envVarGroups:
+      - lifetrail-fe-envgroup  # Reference to environment group name
     envVars:
-      - key: NEXT_PUBLIC_BACKEND_URL
-        # Set this in Render dashboard Environment Variables  
-        # Example: https://your-backend-url.onrender.com
       - key: NEXT_PUBLIC_DEBUG
         value: false
 
