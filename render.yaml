@@ -41,7 +41,8 @@ services:
       - key: NEXT_PUBLIC_DEBUG
         value: false
 
-databases:
-  - name: life-moments-db
-    plan: free
+# Using existing database - no need to create new one
+# databases:
+#   - name: life-moments-db
+#     plan: free
 
