@@ -1,6 +1,4 @@
 
-region: us-east-1  # AWS region for entire blueprint
-
 services:
   - type: web
     name: ltbe-v100-jse247
@@ -10,12 +8,14 @@ services:
     dockerfilePath: ./Dockerfile  # path is relative to repo root
     dockerContext: .              
     envVarGroups:
-      - lifetrail-be-envgroup  # Reference to environment group name
+      - lifetrail-be-envgroup
     envVars:
       - key: DATABASE_URL
         fromDatabase:
           name: life-moments-db
           property: connectionString
+      - key: AWS_REGION
+        value: us-east-1
         
     healthCheckPath: /health
 
@@ -26,7 +26,7 @@ services:
     rootDir: frontend
     dockerfilePath: ./Dockerfile
     envVarGroups:
-      - lifetrail-fe-envgroup  # Reference to environment group name
+      - lifetrail-fe-envgroup
     envVars:
       - key: NEXT_PUBLIC_DEBUG
         value: false
