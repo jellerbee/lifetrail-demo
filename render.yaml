@@ -1,7 +1,7 @@
 
 services:
   - type: web
-    name: life-moments-backend
+    name: ltbe-v100-jse247
     runtime: docker            # prefer 'runtime' over legacy 'env'
     plan: starter
     rootDir: backend
@@ -10,10 +10,11 @@ services:
     envVars:
       - key: DATABASE_URL
         fromDatabase:
-          name: life-moments-db
+          name: ltdb-v100-jse247
           property: connectionString
       - key: ALLOWED_ORIGINS
-        value: 'https://life-moments-frontend.onrender.com,http://localhost:3000,*'
+        # Set this in Render dashboard Environment Variables
+        # Example: 'https://your-frontend-url.onrender.com,http://localhost:3000'
       - key: AWS_ACCESS_KEY_ID
       - key: AWS_SECRET_ACCESS_KEY
       - key: AWS_BUCKET_NAME
@@ -25,14 +26,15 @@ services:
     healthCheckPath: /health
 
   - type: web
-    name: life-moments-frontend
+    name: ltfe-v100-jse247
     runtime: docker
     plan: starter
     rootDir: frontend
     dockerfilePath: ./Dockerfile
     envVars:
       - key: NEXT_PUBLIC_BACKEND_URL
-        value: https://life-moments-backend.onrender.com
+        # Set this in Render dashboard Environment Variables  
+        # Example: https://your-backend-url.onrender.com
       - key: NEXT_PUBLIC_DEBUG
         value: false
 
