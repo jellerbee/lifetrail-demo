@@ -1,4 +1,4 @@
-# Life Moments AI
+# LifeTrail AI
 
 A comprehensive full-stack application for capturing and analyzing life moments through AI-powered image processing. Features advanced HEIC/HEIF support, GPT-4 Vision analysis, and personalized narrative generation.
 
