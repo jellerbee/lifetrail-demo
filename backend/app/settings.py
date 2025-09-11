@@ -21,15 +21,15 @@ class Settings(BaseSettings):
     def user_profile(self) -> Dict[str, Any]:
         """Hardcoded user profile for demo purposes"""
         return {
-            "name": "Alex Chen",
-            "birth_date": "1992-03-15",
-            "age": datetime.now().year - 1992,
-            "city": "San Francisco",
-            "state": "California", 
+            "name": "John Doe",
+            "birth_date": "1965-01-01",
+            "age": datetime.now().year - 1965,
+            "city": "Austin",
+            "state": "Texas", 
             "occupation": "Software Engineer",
-            "interests": ["hiking", "photography", "cooking", "travel"],
+            "interests": ["fishing", "photography", "cooking", "good food", "travel"],
             "relationships": {
-                "partner": "Sam",
+                "partner": "Mary Doe",
                 "pets": ["Luna (cat)"]
             }
         }
