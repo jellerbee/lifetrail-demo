@@ -6,7 +6,7 @@ A full-stack demo AI application for capturing and analyzing moments in time thr
 
 ## Contribute and Shape the Project
 
-This project started as a weekend demo — but it won’t stop there. It’s open source from day one, and I’m looking for smart developers who want to **learn, teach, and build together**.  
+This project started as a weekend demo — but we are going to keep building on it. I’m looking for smart, entrepeneurial developers who want to **learn, teach, and build together**.  
 
 Why contribute?  
 - **Grow your skills** by working with a real multimodal AI pipeline.  
@@ -30,7 +30,7 @@ Let’s see what this can grow into — together.
 ### Run Locally
 1. **Clone the repository**:
    ```bash
-   git clone <your-repo-url>
+   git clone https://github.com/jellerbee/lifetrail-demo.git
    cd lifemoments-demo
    ```
 
@@ -58,6 +58,7 @@ Let’s see what this can grow into — together.
 5. **Upload Images**: Start uploading photos with optional captions to see AI analysis in action!
 
 ## Deploy to Render
+If you want to deploy to render follow these steps: 
 
 ### Production Deployment Steps
 
