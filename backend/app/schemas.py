@@ -10,6 +10,7 @@ class UploadImageRequest(BaseModel):
 
 class EventOut(BaseModel):
     id: int
+    session_id: str
     kind: str
     source: str | None
     summary: str

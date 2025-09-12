@@ -5,6 +5,7 @@ from .db import Base
 class Event(Base):
     __tablename__ = "events"
     id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(String(36), nullable=False, index=True)  # UUID for session isolation
     kind = Column(String(32), nullable=False)           # "image" | "text"
     source = Column(Text, nullable=True)                # raw text or S3 key
     summary = Column(Text, nullable=False)              # AI-generated summary 

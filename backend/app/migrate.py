@@ -97,6 +97,24 @@ def migrate_database():
             """))
             conn.commit()
         
+        # Check if session_id column exists
+        result = conn.execute(text("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'events' AND column_name = 'session_id'
+        """))
+        
+        if not result.fetchone():
+            print("Adding session_id column...")
+            conn.execute(text("""
+                ALTER TABLE events 
+                ADD COLUMN session_id VARCHAR(36) NOT NULL DEFAULT 'legacy-session'
+            """))
+            conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_events_session_id ON events(session_id)
+            """))
+            conn.commit()
+        
         print("Database migration completed!")
 
 if __name__ == "__main__":

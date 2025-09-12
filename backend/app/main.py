@@ -52,10 +52,10 @@ async def health():
     return {"status": "ok"}
 
 @app.post("/api/process", response_model=schemas.EventOut)
-async def process_text(payload: schemas.ProcessTextRequest, db: Session = Depends(get_db)):
+async def process_text(payload: schemas.ProcessTextRequest, session_id: str, db: Session = Depends(get_db)):
     labels = ",".join(extract_keywords(payload.text))
     summary = await summarize(payload.text)
-    ev = models.Event(kind="text", source=payload.text[:2000], summary=summary, labels=labels)
+    ev = models.Event(session_id=session_id, kind="text", source=payload.text[:2000], summary=summary, labels=labels)
     db.add(ev)
     db.commit()
     db.refresh(ev)
@@ -65,6 +65,7 @@ async def process_text(payload: schemas.ProcessTextRequest, db: Session = Depend
 async def upload_image(
     file: UploadFile = File(...),
     caption: str = Form(""),
+    session_id: str = Form(...),
     db: Session = Depends(get_db)
 ):
     # Validate file type (accept both regular images and HEIC)
@@ -93,6 +94,7 @@ async def upload_image(
     
     # Create event with pending status
     event = models.Event(
+        session_id=session_id,
         kind="image",
         source=s3_key,
         summary="Processing...",  # Will be replaced with AI summary
@@ -122,8 +124,8 @@ async def get_s3_config():
     }
 
 @app.get("/api/events", response_model=list[schemas.EventOut])
-async def list_events(db: Session = Depends(get_db)):
-    return db.query(models.Event).order_by(models.Event.id.desc()).limit(50).all()
+async def list_events(session_id: str, db: Session = Depends(get_db)):
+    return db.query(models.Event).filter(models.Event.session_id == session_id).order_by(models.Event.id.desc()).limit(50).all()
 
 @app.post("/api/truncate-events")
 async def truncate_events(db: Session = Depends(get_db)):
