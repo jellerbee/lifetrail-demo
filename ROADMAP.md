@@ -1,18 +1,18 @@
 # LifeTrail Roadmap
 
 This roadmap outlines the current goals and future direction of the **LifeTrail** project.  
-LifeTrail is an open-source, AI-powered application that organizes uploaded images and text into a timeline of meaningful life moments.  
+LifeTrail is an open-source, AI-powered application that organizes uploaded images and text into a timeline of meaningful moments.  
 
 ---
 
-## 🎯 Project Goals
+## Project Goals
 - Provide a hands-on example of building a full-stack AI-powered application.
 - Serve as a learning playground for developers and product managers working with AI/ML.
-- Build a community of contributors experimenting with real-world AI integrations.
+- Build a community of contributors experimenting with real-world AI integrations. (Blog coming soon!)
 
 ---
 
-## ✅ Current (MVP)
+## Current (MVP)
 - **Frontend (Next.js + Tailwind)**  
   - Multi-file upload (images, text, docs)  
   - Flagging of "key moments"  
@@ -31,17 +31,17 @@ LifeTrail is an open-source, AI-powered application that organizes uploaded imag
 
 ---
 
-## 🚧 Near-Term (Next 1–2 months)
+## Near-Term (Next 1–2 months)
 - Improved dashboard UI (search, sort, pagination, event detail view)  
 - Unified “Story View” combining dashboard + timeline  
-- Contributor-friendly issue templates, PR process ✅ (done!)  
+- Contributor-friendly issue templates, PR process (done!)  
 - Basic unit tests for backend APIs  
 - CI pipeline (linting + tests on PRs)  
 - Docker setup for local dev (frontend + backend)  
 
 ---
 
-## 🛠 Mid-Term (3–6 months)
+## Mid-Term (3–6 months)
 - Mobile-friendly UI  
 - AI pipeline enhancements  
   - Better image event inference prompts  
@@ -53,7 +53,7 @@ LifeTrail is an open-source, AI-powered application that organizes uploaded imag
 
 ---
 
-## 🌐 Long-Term Vision
+## Long-Term Vision
 - Collaborative features (shared timelines, family contributions)  
 - Export/import features (PDF/JSON)  
 - Plugin architecture for AI modules  
@@ -62,7 +62,7 @@ LifeTrail is an open-source, AI-powered application that organizes uploaded imag
 
 ---
 
-## 🧑‍💻 How to Get Involved
+## How to Get Involved
 - Browse open [Issues](../../issues) and look for the `good first issue` label.  
 - Join [Discussions](../../discussions) to propose features or ask questions.  
 - Submit PRs for bug fixes, documentation improvements, or features.  
