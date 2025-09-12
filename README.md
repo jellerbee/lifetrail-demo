@@ -2,6 +2,24 @@
 
 A full-stack demo AI application for capturing and analyzing moments in time through AI-powered image processing. Features advanced HEIC/HEIF support, GPT-4 Vision analysis, and personalized narrative generation.
 
+---
+
+## Contribute and Shape the Project
+
+This project started as a weekend demo — but it won’t stop there. It’s open source from day one, and I’m looking for smart developers who want to **learn, teach, and build together**.  
+
+Why contribute?  
+- **Grow your skills** by working with a real multimodal AI pipeline.  
+- **Bring your ideas** — the core pattern (images → metadata → narrative) can be applied to countless real-world problems.  
+- **Shape the future** — your contributions can directly influence where this project goes next.  
+
+Check out the [Contributing Guide](CONTRIBUTING.md) to get started, open an issue with your ideas, or fork the repo and submit a PR.  
+
+Let’s see what this can grow into — together.  
+
+---
+
+
 ## Quick Start (Local Development)
 
 ### Prerequisites
