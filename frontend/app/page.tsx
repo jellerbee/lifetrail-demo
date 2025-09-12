@@ -407,6 +407,21 @@ export default function Page() {
           }
         }
       `}</style>
+      
+      {/* Debug Session ID */}
+      {isDebugMode && (
+        <div style={{
+          backgroundColor: "#f8f9fa",
+          border: "1px solid #dee2e6",
+          borderRadius: 4,
+          padding: 8,
+          marginBottom: 16,
+          fontSize: 12,
+          color: "#666"
+        }}>
+          <strong>Debug Session ID:</strong> {api.getSessionId()}
+        </div>
+      )}
       {/* Image Form */}
       <form onSubmit={onSubmitImage} style={{ marginBottom: 24 }}>
           <div style={{ marginBottom: 8 }}>

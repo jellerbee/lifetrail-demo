@@ -9,12 +9,30 @@ if (typeof window !== 'undefined') {
 let s3Config: { bucket_name: string; region: string } | null = null;
 let imageUrlCache: { [key: string]: string } = {};
 
+// Session management
+function generateSessionId(): string {
+  return 'session-' + Math.random().toString(36).substring(2) + Date.now().toString(36);
+}
+
+function getSessionId(): string {
+  if (typeof window === 'undefined') return 'server-session';
+  
+  let sessionId = localStorage.getItem('lifetrail-session-id');
+  if (!sessionId) {
+    sessionId = generateSessionId();
+    localStorage.setItem('lifetrail-session-id', sessionId);
+  }
+  return sessionId;
+}
+
 export const api = {
   base: BASE_URL,
+  getSessionId,
   async upload(file: File, caption: string) {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("caption", caption);
+    formData.append("session_id", getSessionId());
     
     const res = await fetch(`${this.base}/api/upload`, {
       method: "POST",
@@ -24,7 +42,8 @@ export const api = {
     return res.json();
   },
   async events() {
-    const res = await fetch(`${this.base}/api/events`, { cache: "no-store" });
+    const sessionId = getSessionId();
+    const res = await fetch(`${this.base}/api/events?session_id=${encodeURIComponent(sessionId)}`, { cache: "no-store" });
     if (!res.ok) throw new Error("Request failed");
     return res.json();
   },
