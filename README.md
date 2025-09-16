@@ -15,10 +15,11 @@ Why contribute?
 
 Check out the [Contributing Guide](CONTRIBUTING.md) to get started, open an issue with your ideas, or fork the repo and submit a PR.  
 
-Let’s see what this can grow into — together.  
+Let’s see what this can grow into — together.
+
+Follow the development journey: [LifeTrail Blog Series](https://jellerbee.hashnode.dev/series/lifetrail-project)
 
 ---
-
 
 ## Quick Start (Local Development)
 
