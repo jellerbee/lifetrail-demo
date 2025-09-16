@@ -131,7 +131,7 @@ npm run dev
 
 ### Advanced Features
 - **HEIC Processing**: Full metadata extraction including GPS and timestamps
-- **User Profiles**: Personalized narratives based on user context (demo: Alex Chen profile)
+- **User Profiles**: Personalized narratives based on user context (demo: John Doe)
 - **Location Awareness**: Reverse geocoding for travel vs. home context
 - **Face Recognition**: AWS Rekognition for people identification
 - **Debug Mode**: Toggle `NEXT_PUBLIC_DEBUG=true` for detailed technical information
